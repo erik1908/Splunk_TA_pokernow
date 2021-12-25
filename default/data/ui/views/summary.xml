@@ -1,0 +1,184 @@
+<form theme="dark">
+  <label>Summary</label>
+  <fieldset submitButton="false">
+    <input type="dropdown" token="selectedSession" searchWhenChanged="true">
+      <label>Session</label>
+      <fieldForLabel>date</fieldForLabel>
+      <fieldForValue>source</fieldForValue>
+      <search>
+        <query>| tstats c where index=* sourcetype=poker:summary by source
+| rex field=source "(?&lt;date&gt;\d+).txt"
+| eval dateadded_epoch = strptime('date', "%Y%m%d")
+| fieldformat  date=strftime(dateadded_epoch,"%Y-%m-%d")
+| sort - date</query>
+        <earliest>0</earliest>
+        <latest></latest>
+      </search>
+    </input>
+  </fieldset>
+  <row>
+    <panel>
+      <title>Results</title>
+      <table>
+        <search>
+          <query>host="data-ninja.com" index="main" OR index=poker* sourcetype="poker:summary" source=$selectedSession$ 
+| eval player = lower(player) | eval amount=coalesce(stack,addon), action=if(action="created","participation",action) 
+| chart sum(amount) over player by action 
+| table player quits addon participation 
+| eval addon=if(isnull(addon),"0",addon) 
+| fillnull value="0" 
+| eval total=(quits-addon-participation)/100 
+
+| table player total
+| sort - total</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+    <panel>
+      <title>Tikkies</title>
+      <table>
+        <search>
+          <query>host="data-ninja.com" index="main" OR index=poker* sourcetype="poker:summary" source=$selectedSession$ 
+| eval player = lower(player) 
+| eval amount=coalesce(stack,addon), action=if(action="created","participation",action) 
+| chart sum(amount) over player by action 
+| table player quits addon participation 
+| eval addon=if(isnull(addon),"0",addon) 
+| fillnull value="0" 
+| eval total=(quits-addon-participation)/100 
+| table player total 
+| eval winner=if(total&gt;0,1,-1),abs_loss=abs(total)  | sort - winner abs_loss
+| pokernowpayment
+| eval tekst=printf("%s mag een tikkie van %s sturen aan %s", winner, pays, loser) 
+| table tekst loser pays winner</query>
+          <earliest>0</earliest>
+          <latest></latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="refresh.display">progressbar</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Summary</title>
+      <table>
+        <search>
+          <query>host="data-ninja.com" index="main" OR index=poker* sourcetype="poker:summary" source=$selectedSession$
+| eval amount=coalesce(stack,addon), action=if(action="created","participation",action) 
+| chart sum(amount) over player by action 
+| table player quits addon participation 
+| eval addon=if(isnull(addon),"0",addon)
+| fillnull value="0" 
+| eval total=(quits-addon-participation)/100 
+| append 
+    [ search host="data-ninja.com" index="main" OR index=poker* sourcetype="poker:summary" source=$selectedSession$
+    | stats latest(stack) as stack by player 
+    | eval out=stack/100 
+    | fields player out] 
+| stats values(*) as * by player
+| table player total out *
+| sort - total</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <table>
+        <search>
+          <query>host="data-ninja.com" index="*" sourcetype="poker:summary" source=$selectedSession$ 
+| eval amount=coalesce(stack,addon), action=if(action="created","participation",action) 
+| chart sum(amount) over player by action 
+| table player quits addon participation
+| eval addon=if(isnull(addon),"0",addon) 
+| fillnull value="0" 
+| eval total=(quits-addon-participation)/100 
+| table player total
+| sort - total
+| streamstats c
+| eval v = c . "'" . player . "':" . total . ","
+| stats values(v) as v 
+| nomv v
+| rex mode=sed field=v "s/(\d)\'/'/g"
+| rex mode=sed field=v "s/\,$//g"
+| eval v= "players = {" . v . "}"</query>
+          <earliest>0</earliest>
+          <latest></latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+  <row>
+    <panel>
+      <title>Overall</title>
+      <input type="time" token="field1">
+        <label></label>
+        <default>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </default>
+      </input>
+      <table>
+        <search>
+          <query>host="data-ninja.com" index="main"  OR index=poker* sourcetype="poker:summary" 
+| eval player = lower(player) 
+| eval amount=coalesce(stack,addon), action=if(action="created","participation",action), player=case(player="erik","jardinero",
+                                                                                                     player="makkie","makkie jr",
+                                                                                                     player="junior","makkie jr",
+                                                                                                     player="roger","rogier",
+                                                                                                     player="castors","castor",
+                                                                                                     true(),player)
+| chart dc(source) as dc sum(amount) as am over player by action
+| rename "am: *" as *, "dc: quits" as no_games
+| fields - dc*
+| table player quits addon participation no_games
+| eval addon=if(isnull(addon),"0",addon) 
+| fillnull value="0" 
+| eval total=(quits-addon-participation)/100
+| table player total no_games
+| sort - total
+| eval before=if(player="jardinero","132.41","0"), Total=total+before
+| rename total as "since 4-7"
+| sort - Total
+| table player no* bef* sin* tot* *</query>
+          <earliest>$field1.earliest$</earliest>
+          <latest>$field1.latest$</latest>
+          <sampleRatio>1</sampleRatio>
+        </search>
+        <option name="count">20</option>
+        <option name="dataOverlayMode">none</option>
+        <option name="drilldown">none</option>
+        <option name="percentagesRow">false</option>
+        <option name="refresh.display">progressbar</option>
+        <option name="rowNumbers">false</option>
+        <option name="totalsRow">false</option>
+        <option name="wrap">true</option>
+      </table>
+    </panel>
+  </row>
+</form>

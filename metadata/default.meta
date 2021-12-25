@@ -1,0 +1,75 @@
+
+# Application-level permissions
+
+[]
+access = read : [ * ], write : [ admin, power ]
+
+### EVENT TYPES
+
+[eventtypes]
+export = system
+
+
+### PROPS
+
+[props]
+export = system
+
+
+### TRANSFORMS
+
+[transforms]
+export = system
+
+
+### LOOKUPS
+
+[lookups]
+export = system
+
+
+### VIEWSTATES: even normal users should be able to create shared viewstates
+
+[viewstates]
+access = read : [ * ], write : [ * ]
+export = system
+
+[app/ui]
+version = 8.0.1
+modtime = 1590083919.231777000
+
+[app/launcher]
+version = 8.0.1
+modtime = 1590083919.236862000
+
+[props/poker%3Asummary/EXTRACT-addon-player]
+access = read : [ * ]
+export = none
+owner = admin
+version = 8.0.1
+modtime = 1590084193.118571000
+
+[props/poker%3Asummary/EXTRACT-player-action-stack]
+access = read : [ * ]
+export = none
+owner = admin
+version = 8.0.1
+modtime = 1590084066.894850000
+
+[props/poker%3Asummary/EVAL-addon]
+access = read : [ * ]
+export = none
+owner = admin
+version = 8.0.1
+modtime = 1590085335.050223000
+
+[props/poker%3Asummary/EVAL-action]
+export = none
+owner = admin
+version = 8.0.1
+modtime = 1590085616.350512000
+
+[views/summary]
+owner = admin
+version = 8.0.1
+modtime = 1590370348.521247000
